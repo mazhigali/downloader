@@ -18,6 +18,7 @@ type Config struct {
 	FolderName      string // if empty downloads to current dir
 	Replace         bool   // if true it replaces already downloaded file
 	Useragent       string
+	Referer         string
 	ProxyStr        string // "socks5://194.67.208.62:24530"
 	EncryptFileName        // replaces filename encrypted with sha
 }
@@ -31,7 +32,7 @@ func Download(conf Config) (string, error) {
 	if conf.Url == "" {
 		return "", errors.New("Error Url is empty")
 	}
-	fmt.Println("0", conf.Url)
+	//fmt.Println("0", conf.Url)
 
 	var dir_path string
 	var err error
@@ -46,7 +47,7 @@ func Download(conf Config) (string, error) {
 		if conf.FolderName != "" {
 			// creates directory and downloads into dir
 			dir_path, err = dir_full_path(conf.FolderName)
-			fmt.Println("1", dir_path)
+			//fmt.Println("1", dir_path)
 			if err != nil {
 				return "", errors.New("Error can't get path")
 			}
@@ -54,19 +55,20 @@ func Download(conf Config) (string, error) {
 			//download to current directory
 			dir, _ := os.Getwd()
 			dir_path = dir + string(os.PathSeparator)
-			fmt.Println("2", dir_path)
+			//fmt.Println("2", dir_path)
 		}
 	default: // download into path you assign
 		if conf.FolderName != "" {
 			dir_path = conf.Path2save + string(os.PathSeparator) + conf.FolderName + string(os.PathSeparator)
-			fmt.Println("3", dir_path)
+			//fmt.Println("3", dir_path)
 		} else {
 			dir_path = conf.Path2save + string(os.PathSeparator)
-			fmt.Println("4", dir_path)
+			//fmt.Println("4", dir_path)
 		}
 	}
 
-	fmt.Println("dir_path", dir_path)
+	//fmt.Println("dir_path", dir_path)
+
 	err = os.MkdirAll(dir_path, 0755)
 	if err != nil {
 		return "", fmt.Errorf("Error creating destination directory: %v", err)
@@ -118,7 +120,7 @@ func Download(conf Config) (string, error) {
 		}
 	}
 
-	check := http.Client{
+	clientWithCheck := http.Client{
 		CheckRedirect: func(r *http.Request, via []*http.Request) error {
 			r.URL.Opaque = r.URL.Path
 			return nil
@@ -126,21 +128,21 @@ func Download(conf Config) (string, error) {
 		Transport: transport,
 	}
 
-	req, err := http.NewRequest("GET", conf.Url, nil)
+	request, err := http.NewRequest("GET", conf.Url, nil)
 	if err != nil {
 		return "", fmt.Errorf("Error while request: %v", err)
 	}
 
 	if conf.Useragent != "" {
-		req.Header.Add("User-Agent", conf.Useragent)
+		request.Header.Add("User-Agent", conf.Useragent)
 	}
-	req.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-	req.Header.Add("Accept-Language", "ru,en-US;q=0.7,en;q=0.3")
+	if conf.Referer != "" {
+		request.Header.Add("Referer", conf.Referer)
+	}
+	request.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+	request.Header.Add("Accept-Language", "ru,en-US;q=0.7,en;q=0.3")
 
-	response, err := check.Do(req)
-	//response, err := check.Get(urlFile)
-	//response, err := http.Get(urlFile)
-	fmt.Println("148", "Download Begin")
+	response, err := clientWithCheck.Do(request)
 	if err != nil {
 		fmt.Printf("Error while downloading %v\nDeleting file: %v\nErr: %v", conf.Url, pathFile, err)
 		err = os.Remove(pathFile)
@@ -151,10 +153,12 @@ func Download(conf Config) (string, error) {
 	}
 	defer response.Body.Close()
 
-	if response.Header.Get("Content-Type") == "text/html" {
+	if strings.Contains(response.Header.Get("Content-Type"), "text/html") == true {
 		return "", errors.New("Error: can't download: GOT HTML")
 	}
-	fmt.Println("HEADER:", response.Header)
+	if response.ContentLength <= 0 {
+		return "", errors.New("Error: invalid content length")
+	}
 
 	//записываем ответ от сервера в файл
 	size, errCopy := io.Copy(output, response.Body)
@@ -175,6 +179,9 @@ func Download(conf Config) (string, error) {
 		}
 		return "", fmt.Errorf("Zero size file Downloaded: %v \nFile deleted %v", conf.Url, pathFile)
 	}
+
+	//fmt.Println("HEADER response:", response.Header)
+	//fmt.Println("HEADER request:", request.Header)
 
 	//fmt.Println(size, "bytes downloaded.")
 	return fileName, nil
