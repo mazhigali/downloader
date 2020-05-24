@@ -28,7 +28,7 @@ type EncryptFileName struct {
 }
 
 // returns filename of downloaded file
-func Download(conf Config) (string, error) {
+func Download(conf *Config) (string, error) {
 	if conf.Url == "" {
 		return "", errors.New("Error Url is empty")
 	}
