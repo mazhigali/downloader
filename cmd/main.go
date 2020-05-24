@@ -10,7 +10,7 @@ import (
 
 func main() {
 	//filename, err := downloader.DownloadFromUrl("https://www.archlinux.org/static/archnavbar/archlogo.a2d0ef2df27d.png", "", "", true, false, "")
-	filename, err := downloader.Download(downloader.Config{
+	filename, err := downloader.Download(&downloader.Config{
 		Url: "https://http2.golang.org/file/gopher.png",
 		//Url:        "https://http2.golang.org/reqinfo",
 		//Url:        "https://http2.golang.org/redirect",
