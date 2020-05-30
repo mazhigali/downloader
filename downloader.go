@@ -154,10 +154,18 @@ func Download(conf *Config) (string, error) {
 	defer response.Body.Close()
 
 	if strings.Contains(response.Header.Get("Content-Type"), "text/html") == true {
-		return "", errors.New("Error: can't download: GOT HTML")
+		err = os.Remove(pathFile)
+		if err != nil {
+			return "", fmt.Errorf("Error while remove file: %v", err)
+		}
+		return "", fmt.Errorf("Error: can't download: GOT HTML %v", conf.Url)
 	}
 	if response.ContentLength <= 0 {
-		return "", errors.New("Error: invalid content length")
+		err = os.Remove(pathFile)
+		if err != nil {
+			return "", fmt.Errorf("Error while remove file: %v", err)
+		}
+		return "", fmt.Errorf("Error: invalid content length %v", conf.Url)
 	}
 
 	//записываем ответ от сервера в файл
