@@ -11,6 +11,9 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/jlaffaye/ftp"
 )
 
 type Config struct {
@@ -18,8 +21,8 @@ type Config struct {
 	Path2save       string // if path2save = "" creates directory and downloads into it if FolderName != "" else downloads into current directory
 	FolderName      string // if empty downloads to current dir
 	Replace         bool   // if true it replaces already downloaded file
-	Useragent       string
-	Referer         string
+	Useragent       string //UserAgent for request
+	Referer         string //Referrer for request
 	ProxyStr        string // "socks5://194.67.208.62:24530"
 	EncryptFileName        // replaces filename encrypted with sha
 }
@@ -103,11 +106,11 @@ func Download(conf *Config) (string, error) {
 		}
 	}
 
-	output, err := os.Create(pathFile)
+	outputFile, err := os.Create(pathFile)
 	if err != nil {
 		return "", fmt.Errorf("Error while creating: %v -  %v", fileName, err)
 	}
-	defer output.Close()
+	defer outputFile.Close()
 
 	//creating the proxyURL
 	proxyURL, err := url.Parse(conf.ProxyStr)
@@ -146,34 +149,63 @@ func Download(conf *Config) (string, error) {
 	request.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
 	request.Header.Add("Accept-Language", "ru,en-US;q=0.7,en;q=0.3")
 
-	response, err := clientWithCheck.Do(request)
-	if err != nil {
-		fmt.Printf("Error while downloading %v\nDeleting file: %v\nErr: %v", conf.Url, pathFile, err)
-		err = os.Remove(pathFile)
-		if err != nil {
-			return "", fmt.Errorf("Error while remove file: %v", err)
-		}
-		return "", fmt.Errorf("Error while getting response.\nLocal file deleted: %v - %v", conf.Url, err)
-	}
-	defer response.Body.Close()
+	var dataFromFile io.Reader
 
-	if strings.Contains(response.Header.Get("Content-Type"), "text/html") == true {
-		err = os.Remove(pathFile)
+	if strings.Contains(conf.Url, "ftp://") == true {
+		//ftp download
+		c, err := ftp.Dial(parsedUrl.Host, ftp.DialWithTimeout(5*time.Second))
 		if err != nil {
-			return "", fmt.Errorf("Error while remove file: %v", err)
+			return "", fmt.Errorf("Error while dial FTP: %v", err)
 		}
-		return "", fmt.Errorf("Error: can't download: GOT HTML %v", conf.Url)
-	}
-	if response.ContentLength <= 0 {
-		err = os.Remove(pathFile)
+		defer c.Quit()
+
+		if pass, ok := parsedUrl.User.Password(); ok {
+			err = c.Login(parsedUrl.User.Username(), pass)
+			if err != nil {
+				return "", fmt.Errorf("Error while login FTP: %v", err)
+			}
+		}
+
+		resp, err := c.Retr(parsedUrl.Path)
 		if err != nil {
-			return "", fmt.Errorf("Error while remove file: %v", err)
+			return "", fmt.Errorf("Error while retrive file FTP: %v", err)
 		}
-		return "", fmt.Errorf("Error: invalid content length %v", conf.Url)
+		defer resp.Close()
+
+		dataFromFile = resp
+	} else {
+
+		//make request
+		response, err := clientWithCheck.Do(request)
+		if err != nil {
+			fmt.Printf("Error while downloading %v\nDeleting file: %v\nErr: %v", conf.Url, pathFile, err)
+			err = os.Remove(pathFile)
+			if err != nil {
+				return "", fmt.Errorf("Error while remove file: %v", err)
+			}
+			return "", fmt.Errorf("Error while getting response.\nLocal file deleted: %v - %v", conf.Url, err)
+		}
+		defer response.Body.Close()
+
+		if strings.Contains(response.Header.Get("Content-Type"), "text/html") == true {
+			err = os.Remove(pathFile)
+			if err != nil {
+				return "", fmt.Errorf("Error while remove file: %v", err)
+			}
+			return "", fmt.Errorf("Error: can't download: GOT HTML %v", conf.Url)
+		}
+		if response.ContentLength <= 0 {
+			err = os.Remove(pathFile)
+			if err != nil {
+				return "", fmt.Errorf("Error while remove file: %v", err)
+			}
+			return "", fmt.Errorf("Error: invalid content length %v", conf.Url)
+		}
+		dataFromFile = response.Body
 	}
 
 	//записываем ответ от сервера в файл
-	size, errCopy := io.Copy(output, response.Body)
+	size, errCopy := io.Copy(outputFile, dataFromFile)
 	if err != nil {
 		//fmt.Println("Error while io Copy", conf.Url, "-", err)
 		err := os.Remove(pathFile)
