@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -36,10 +37,13 @@ func Download(conf *Config) (string, error) {
 
 	var dir_path string
 	var err error
-	tokens := strings.Split(conf.Url, "/")
-	fileName := tokens[len(tokens)-1]
-	tokens = strings.Split(fileName, ".")
-	ext := tokens[len(tokens)-1]
+	parsedUrl, err := url.Parse(conf.Url)
+	if err != nil {
+		return "", errors.New("Error can't Parse url")
+	}
+
+	fileName := path.Base(parsedUrl.Path)
+	ext := strings.Trim(path.Ext(fileName), ".")
 	//fmt.Println("Downloading", urlFile, "to", fileName)
 
 	switch conf.Path2save {
