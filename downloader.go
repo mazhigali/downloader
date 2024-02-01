@@ -82,18 +82,19 @@ func Download(conf *Config) (string, error) {
 	}
 
 	var pathFile string
-	var newFileName string
+	var fileNameResult string
 
 	// тут шифруем файлы
 	if conf.EncryptFileName.ShaFileName == false {
 		pathFile = dir_path + fileName
+		fileNameResult = fileName
 	} else {
 		if conf.Extension == "" {
-			newFileName = fmt.Sprintf("%x", sha1.Sum([]byte(fileName))) + "." + ext
+			fileNameResult = fmt.Sprintf("%x", sha1.Sum([]byte(fileName))) + "." + ext
 		} else {
-			newFileName = fmt.Sprintf("%x", sha1.Sum([]byte(fileName))) + "." + conf.Extension
+			fileNameResult = fmt.Sprintf("%x", sha1.Sum([]byte(fileName))) + "." + conf.Extension
 		}
-		pathFile = dir_path + newFileName
+		pathFile = dir_path + fileNameResult
 	}
 
 	if conf.Replace == false { //если замена выставлена на true то заменяем файлы, если нет, то пропускаем
@@ -234,7 +235,7 @@ func Download(conf *Config) (string, error) {
 	//fmt.Println("HEADER request:", request.Header)
 
 	//fmt.Println(size, "bytes downloaded.")
-	return fileName, nil
+	return fileNameResult, nil
 }
 
 // get path 2 current dir
