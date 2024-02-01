@@ -125,6 +125,12 @@ func Download(conf *Config) (string, error) {
 			//TLSClientConfig: &tls.Config{},
 			//TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
+	} else {
+		transport = &http.Transport{
+			DisableCompression: true,
+			//TLSClientConfig: &tls.Config{},
+			//TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
 	}
 
 	clientWithCheck := http.Client{
@@ -146,7 +152,7 @@ func Download(conf *Config) (string, error) {
 	if conf.Referer != "" {
 		request.Header.Add("Referer", conf.Referer)
 	}
-	request.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+	request.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
 	request.Header.Add("Accept-Language", "ru,en-US;q=0.7,en;q=0.3")
 
 	var dataFromFile io.Reader
@@ -231,7 +237,7 @@ func Download(conf *Config) (string, error) {
 	return fileName, nil
 }
 
-//get path 2 current dir
+// get path 2 current dir
 func dir_full_path(parsSite string) (string, error) {
 	path, err := filepath.Abs(parsSite)
 

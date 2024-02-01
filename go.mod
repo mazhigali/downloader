@@ -1,8 +1,8 @@
 module github.com/mazhigali/downloader
 
-go 1.19
+go 1.21
 
-require github.com/jlaffaye/ftp v0.0.0-20220630165035-11536801d1ff
+require github.com/jlaffaye/ftp v0.2.0
 
 require (
 	github.com/hashicorp/errwrap v1.0.0 // indirect
