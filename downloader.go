@@ -2,6 +2,7 @@ package downloader
 
 import (
 	"crypto/sha1"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -101,7 +102,7 @@ func Download(conf *Config) (string, error) {
 		//если файл существует, то выходим из функции и возвращаем имя файла, если ошибка то начинаем скачивание
 		if _, err := os.Stat(pathFile); err == nil {
 			//fmt.Println("file already exists")
-			return fileName, nil
+			return fileNameResult, nil
 			//} else {
 			//return "", err
 		}
@@ -123,14 +124,16 @@ func Download(conf *Config) (string, error) {
 	if conf.ProxyStr != "" {
 		transport = &http.Transport{
 			Proxy: http.ProxyURL(proxyURL),
-			//TLSClientConfig: &tls.Config{},
-			//TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, // Игнорировать ошибки сертификата
+			},
 		}
 	} else {
 		transport = &http.Transport{
 			DisableCompression: true,
-			//TLSClientConfig: &tls.Config{},
-			//TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, // Игнорировать ошибки сертификата
+			},
 		}
 	}
 
